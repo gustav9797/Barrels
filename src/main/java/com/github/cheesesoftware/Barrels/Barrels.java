@@ -71,8 +71,7 @@ public class Barrels extends JavaPlugin implements Listener {
 	    ResultSet result = this.executeQuery("SELECT * FROM `barrels-barrels`");
 	    while (result.next()) {
 		Location l = new Location(getServer().getWorld(result.getString("world")), result.getInt("x"), result.getInt("y"), result.getInt("z"));
-		ItemStack itemStack = new ItemStack(Material.getMaterial(result.getInt("material")));
-		itemStack.setData(new MaterialData(itemStack.getType(), result.getByte("data")));
+		ItemStack itemStack = new ItemStack(Material.getMaterial(result.getInt("material")), 1, result.getByte("data"));
 		Barrel barrel = new Barrel(result.getInt("id"), l, UUID.fromString(result.getString("creator")), itemStack, result.getInt("amount"));
 		barrels.put(l, barrel);
 
@@ -169,7 +168,7 @@ public class Barrels extends JavaPlugin implements Listener {
 		if (!playerItem.getType().equals(Material.AIR) && playerItem.getAmount() > 0) {
 		    if (barrels.containsKey(base.getLocation())) {
 			Barrel barrel = barrels.get(base.getLocation());
-			if (playerItem.getType().equals(barrel.getItemStack().getType())) {
+			if (playerItem.isSimilar(barrel.getItemStack())) {
 			    // Insert the item
 			    int amountInserting = playerItem.getAmount();
 			    amountInserting = (barrel.getItemAmount() + amountInserting > barrelMaxCapacity ? barrelMaxCapacity - barrel.getItemAmount() : amountInserting);

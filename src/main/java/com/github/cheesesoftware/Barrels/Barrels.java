@@ -6,20 +6,16 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-import org.bukkit.Bukkit;
 import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Hopper;
-import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.ItemFrame;
@@ -37,11 +33,6 @@ import org.bukkit.material.MaterialData;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
-import com.gmail.filoghost.holographicdisplays.api.Hologram;
-import com.gmail.filoghost.holographicdisplays.api.HologramsAPI;
-import com.gmail.filoghost.holographicdisplays.api.handler.TouchHandler;
-import com.gmail.filoghost.holographicdisplays.api.line.TextLine;
-
 public class Barrels extends JavaPlugin implements Listener {
 
     private String host = "";
@@ -57,8 +48,6 @@ public class Barrels extends JavaPlugin implements Listener {
     private Map<Location, Barrel> barrels = new HashMap<Location, Barrel>();
     int nextID = 0;
 
-    private boolean useHolographicDisplays = false;
-
     public void onDisable() {
     }
 
@@ -67,11 +56,6 @@ public class Barrels extends JavaPlugin implements Listener {
 	this.saveDefaultConfig();
 
 	getServer().getPluginManager().registerEvents(this, this);
-
-	if (!Bukkit.getPluginManager().isPluginEnabled("HolographicDisplays"))
-	    Bukkit.getLogger().severe("[Barrels] Could not load HolographicDisplays. Please install it if you want holographic barrels.");
-	else
-	    useHolographicDisplays = true;
 
 	this.host = getConfig().getString("host");
 	this.database = getConfig().getString("database");
@@ -94,31 +78,6 @@ public class Barrels extends JavaPlugin implements Listener {
 		itemStack.setData(new MaterialData(itemStack.getType(), result.getByte("data")));
 		Barrel barrel = new Barrel(result.getInt("id"), l, UUID.fromString(result.getString("creator")), itemStack, result.getInt("amount"));
 		barrels.put(l, barrel);
-
-		if (this.useHolographicDisplays) {
-		    ArrayList<Vector> locationsToCheck = new ArrayList<Vector>();
-		    Vector start = l.toVector();
-		    locationsToCheck.add((start.clone().add(new Vector(1, 0, 0))));
-		    locationsToCheck.add((start.clone().add(new Vector(-1, 0, 0))));
-		    locationsToCheck.add((start.clone().add(new Vector(0, 0, 1))));
-		    locationsToCheck.add((start.clone().add(new Vector(0, 0, -1))));
-
-		    for (Entity e : l.getChunk().getEntities()) {
-			if (e instanceof ItemFrame) {
-			    ItemFrame itemFrame = (ItemFrame) e;
-			    for (Vector toCheck : locationsToCheck) {
-				Vector frameVector = itemFrame.getLocation().getBlock().getLocation().toVector();
-				Vector toCheckVector = toCheck;
-				if (frameVector.equals(toCheckVector)) {
-				    Hologram hologram = HologramsAPI.createHologram(this, toCheck.toLocation(itemFrame.getWorld()));
-				    TextLine textLine = hologram.appendTextLine("A hologram line");
-				    barrel.addHologram(hologram);
-				}
-			    }
-			}
-
-		    }
-		}
 
 		if (result.getInt("id") >= this.nextID)
 		    this.nextID = result.getInt("id") + 1;
@@ -158,16 +117,6 @@ public class Barrels extends JavaPlugin implements Listener {
     @SuppressWarnings("deprecation")
     @EventHandler(priority = EventPriority.HIGHEST)
     public void onPlayerInteractEntity(PlayerInteractEntityEvent e) {
-	
-	
-	
-	
-	getServer().broadcastMessage("sometinhigh " + e.getRightClicked().getCustomName());
-	
-	
-	
-	
-	
 	if (e.isCancelled())
 	    return;
 	if (e.getRightClicked().getType() == EntityType.ITEM_FRAME) {
@@ -215,20 +164,7 @@ public class Barrels extends JavaPlugin implements Listener {
 			e1.printStackTrace();
 		    }
 		    
-		    Vector difference = frame.getLocation().getBlock().getLocation().toVector().subtract(barrel.getLocation().toVector());
-
 		    p.getWorld().playEffect(frame.getLocation(), Effect.ENDER_SIGNAL, 31);
-		    
-		    Hologram hologram = HologramsAPI.createHologram(this, frame.getLocation().add(difference.multiply(0.2d).add(new Vector(0, 0.4, 0))));
-		    TextLine textLine = hologram.appendTextLine("" + barrel.getItemAmount());
-		    textLine.setTouchHandler(new TouchHandler () {
-
-			@Override
-			public void onTouch(Player arg0) {
-			    // TODO Auto-generated method stub
-			    
-			}});
-		    barrel.addHologram(hologram);
 		}
 		return;
 	    } else {

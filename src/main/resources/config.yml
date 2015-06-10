@@ -1,0 +1,13 @@
+# default config.yml
+
+# Database info. type:mysql/sqlite
+type: mysql
+
+host: localhost
+database: minecraft
+port: 3306
+username: root
+password: potato
+
+#Other settings
+barrelMaxCapacity: 4096

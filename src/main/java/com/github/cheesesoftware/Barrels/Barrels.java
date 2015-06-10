@@ -26,7 +26,6 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.material.MaterialData;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -138,6 +137,7 @@ public class Barrels extends JavaPlugin implements Listener {
 
 		    if (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore()) {
 			p.sendMessage("[Barrels] You can't store items with special data in barrels.");
+			e.setCancelled(true);
 			return;
 		    }
 
@@ -178,6 +178,7 @@ public class Barrels extends JavaPlugin implements Listener {
 
 			    if (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore()) {
 				p.sendMessage("[Barrels] You can't store items with special data in barrels.");
+				e.setCancelled(true);
 				return;
 			    }
 

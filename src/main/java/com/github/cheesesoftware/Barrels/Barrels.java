@@ -133,13 +133,19 @@ public class Barrels extends JavaPlugin implements Listener {
 	    // Player is trying to insert item in frame to create barrel
 	    if (frameItem.getType().equals(Material.AIR) && playerItem.getAmount() >= 1) {
 
-		// Remove existing barrels that don't match the item
-		if (this.barrels.containsKey(base.getLocation()) && !barrels.get(base.getLocation()).getItemStack().getType().equals(playerItem.getType())) {
-		    destroyBarrel(base.getLocation());
-		}
-
 		// Base is a spruce log
 		if (base.getType().equals(Material.LOG) && base.getData() == 1) {
+
+		    if (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore()) {
+			p.sendMessage("[Barrels] You can't store items with special data in barrels.");
+			return;
+		    }
+
+		    // Remove existing barrels that don't match the item
+		    if (this.barrels.containsKey(base.getLocation()) && !barrels.get(base.getLocation()).getItemStack().getType().equals(playerItem.getType())) {
+			destroyBarrel(base.getLocation());
+		    }
+
 		    Barrel barrel = new Barrel(this.nextID, base.getLocation(), p.getUniqueId(), playerItem, 0);
 		    barrels.put(base.getLocation(), barrel);
 		    try {
@@ -159,7 +165,7 @@ public class Barrels extends JavaPlugin implements Listener {
 		    } catch (SQLException e1) {
 			e1.printStackTrace();
 		    }
-		    
+
 		    p.getWorld().playEffect(frame.getLocation(), Effect.ENDER_SIGNAL, 31);
 		}
 		return;
@@ -169,6 +175,12 @@ public class Barrels extends JavaPlugin implements Listener {
 		    if (barrels.containsKey(base.getLocation())) {
 			Barrel barrel = barrels.get(base.getLocation());
 			if (playerItem.isSimilar(barrel.getItemStack())) {
+
+			    if (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore()) {
+				p.sendMessage("[Barrels] You can't store items with special data in barrels.");
+				return;
+			    }
+
 			    // Insert the item
 			    int amountInserting = playerItem.getAmount();
 			    amountInserting = (barrel.getItemAmount() + amountInserting > barrelMaxCapacity ? barrelMaxCapacity - barrel.getItemAmount() : amountInserting);

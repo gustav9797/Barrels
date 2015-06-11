@@ -14,6 +14,8 @@ import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.Hopper;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.ItemFrame;
@@ -24,6 +26,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
+import org.bukkit.event.inventory.InventoryMoveItemEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -270,6 +273,49 @@ public class Barrels extends JavaPlugin implements Listener {
 		} else
 		    e.setCancelled(false);
 
+	    }
+	}
+    }
+
+    @SuppressWarnings("deprecation")
+    @EventHandler
+    public void onInventoryMoveItem(InventoryMoveItemEvent e) {
+	if (e.getDestination().getHolder() instanceof Hopper) {
+	    Hopper hopper = (Hopper) e.getDestination().getHolder();
+	    Block down = hopper.getBlock().getRelative(BlockFace.DOWN);
+	    if (hopper.getBlock().getData() == 0 && barrels.containsKey(down.getLocation())) {
+		Barrel barrel = barrels.get(down.getLocation());
+		if (barrel.getItemStack().isSimilar(e.getItem())) {
+		    // There is barrel and it has the same item type.
+
+		    barrel.setItemAmount(barrel.getItemAmount() + e.getItem().getAmount());
+		    this.executeQuery("UPDATE `barrels-barrels` SET `amount`='" + barrel.getItemAmount() + "' WHERE `id`='" + barrel.getID() + "'");
+
+		    // e.getDestination().remove(new ItemStack(e.getItem().getType(), e.getItem().getAmount()));
+		    // e.getSource().remove(new ItemStack(e.getItem().getType(), e.getItem().getAmount()));
+
+		    for (ItemStack itemStack : e.getSource().getContents())
+			if (itemStack != null)
+			    getServer().broadcastMessage("source Item type: " + itemStack.getType().toString() + " amount: " + itemStack.getAmount());
+
+		    for (ItemStack itemStack : e.getDestination().getContents())
+			if (itemStack != null)
+			    getServer().broadcastMessage("destination Item type: " + itemStack.getType().toString() + " amount: " + itemStack.getAmount());
+
+		    e.setCancelled(true);
+
+		    for (ItemStack itemStack : e.getSource().getContents())
+			if (itemStack != null)
+			    getServer().broadcastMessage("source Item type: " + itemStack.getType().toString() + " amount: " + itemStack.getAmount());
+
+		    for (ItemStack itemStack : e.getDestination().getContents())
+			if (itemStack != null)
+			    getServer().broadcastMessage("destination Item type: " + itemStack.getType().toString() + " amount: " + itemStack.getAmount());
+
+		    // e.setItem(null);
+		    // e.getItem().setAmount(0);
+		    // e.getItem().setType(Material.AIR);
+		}
 	    }
 	}
     }

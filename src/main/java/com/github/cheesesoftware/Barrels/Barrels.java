@@ -6,8 +6,11 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.Date;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
 
 import org.bukkit.Effect;
@@ -26,6 +29,7 @@ import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
@@ -171,16 +175,64 @@ public class Barrels extends JavaPlugin implements Listener {
 		return;
 	    } else {
 		// Player is trying to insert stuff into the barrel
-		if (!playerItem.getType().equals(Material.AIR) && playerItem.getAmount() > 0) {
+		if (p.hasMetadata("BarrelsLastRightClick") && (new Date()).getTime() - p.getMetadata("BarrelsLastRightClick").get(0).asLong() <= 350) {
+		    // Double-Right Click!
+
 		    if (barrels.containsKey(base.getLocation())) {
 			Barrel barrel = barrels.get(base.getLocation());
-			if (playerItem.isSimilar(barrel.getItemStack())) {
+			e.setCancelled(true);
 
-			    if (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore()) {
-				p.sendMessage("[Barrels] You can't store items with special data in barrels.");
-				e.setCancelled(true);
-				return;
+			if (playerItem != null && playerItem.getItemMeta() != null
+				&& (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore())) {
+			    p.sendMessage("[Barrels] You can't store items with special data in barrels.");
+			    e.setCancelled(true);
+			    return;
+			}
+
+			int amountInserting = 0;
+			HashMap<Integer, Integer> toInsert = new HashMap<Integer, Integer>();
+
+			for (int i = 0; i < p.getInventory().getSize(); i++) {
+			    ItemStack stack = p.getInventory().getContents()[i];
+			    if (stack != null && stack.isSimilar(barrel.getItemStack())) {
+				if (barrel.getItemAmount() + amountInserting + stack.getAmount() <= barrelMaxCapacity) {
+				    amountInserting += stack.getAmount();
+				    toInsert.put(i, stack.getAmount());
+				} else {
+				    int amountAbleToInsert = barrelMaxCapacity - barrel.getItemAmount() - amountInserting;
+				    if (amountAbleToInsert > 0 && stack.getAmount() >= amountAbleToInsert) {
+					amountInserting += amountAbleToInsert;
+					toInsert.put(i, amountAbleToInsert);
+				    }
+				}
 			    }
+			}
+
+			Iterator<Entry<Integer, Integer>> it = toInsert.entrySet().iterator();
+			while (it.hasNext()) {
+			    Entry<Integer, Integer> entry = it.next();
+			    ItemStack stack = p.getInventory().getItem(entry.getKey());
+			    if (entry.getValue() == stack.getAmount()) {
+				p.getInventory().setItem(entry.getKey(), null);
+			    } else if (entry.getValue() < stack.getAmount())
+				stack.setAmount(stack.getAmount() - entry.getValue());
+			}
+
+			barrel.setItemAmount(barrel.getItemAmount() + amountInserting);
+			this.executeQuery("UPDATE `barrels-barrels` SET `amount`='" + barrel.getItemAmount() + "' WHERE `id`='" + barrel.getID() + "'");
+		    }
+
+		} else if (!playerItem.getType().equals(Material.AIR) && playerItem.getAmount() > 0) {
+		    if (barrels.containsKey(base.getLocation())) {
+			Barrel barrel = barrels.get(base.getLocation());
+
+			if (playerItem.getItemMeta().hasDisplayName() || playerItem.getItemMeta().hasEnchants() || playerItem.getItemMeta().hasLore()) {
+			    p.sendMessage("[Barrels] You can't store items with special data in barrels.");
+			    e.setCancelled(true);
+			    return;
+			}
+
+			if (playerItem.isSimilar(barrel.getItemStack())) {
 
 			    // Insert the item
 			    int amountInserting = playerItem.getAmount();
@@ -198,7 +250,10 @@ public class Barrels extends JavaPlugin implements Listener {
 				// p.sendMessage("[Barrels] " + barrel.getItemStack().getType().toString() + " amount: " + barrel.getItemAmount());
 			    } else if (barrel.getItemAmount() >= barrelMaxCapacity)
 				p.getWorld().playEffect(frame.getLocation(), Effect.CLICK1, 31);
+
 			}
+			p.setMetadata("BarrelsLastRightClick", new FixedMetadataValue(this, new Date().getTime()));
+
 			e.setCancelled(true);
 		    }
 		} else if (barrels.containsKey(base.getLocation())) {

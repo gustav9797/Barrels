@@ -6,17 +6,21 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.UUID;
 
+import org.bukkit.Bukkit;
 import org.bukkit.Effect;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.block.Block;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.ItemFrame;
@@ -28,10 +32,14 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.hanging.HangingBreakByEntityEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
+import org.bukkit.event.player.PlayerToggleSneakEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.metadata.FixedMetadataValue;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
+
+import com.gmail.filoghost.holographicdisplays.api.Hologram;
+import com.gmail.filoghost.holographicdisplays.api.HologramsAPI;
 
 public class Barrels extends JavaPlugin implements Listener {
 
@@ -46,7 +54,9 @@ public class Barrels extends JavaPlugin implements Listener {
     private Connection SQLConnection = null;
 
     private Map<Location, Barrel> barrels = new HashMap<Location, Barrel>();
-    int nextID = 0;
+    private int nextID = 0;
+
+    private boolean useHolo = false;
 
     public void onDisable() {
     }
@@ -56,6 +66,12 @@ public class Barrels extends JavaPlugin implements Listener {
 	this.saveDefaultConfig();
 
 	getServer().getPluginManager().registerEvents(this, this);
+
+	if (Bukkit.getPluginManager().isPluginEnabled("HolographicDisplays")) {
+	    useHolo = true;
+	    Bukkit.getLogger().info("HolographicDisplays is loaded. Enabling interaction.");
+	} else
+	    Bukkit.getLogger().info("HolographicDisplays is not loaded. Disabling interaction.");
 
 	this.host = getConfig().getString("host");
 	this.database = getConfig().getString("database");
@@ -78,6 +94,9 @@ public class Barrels extends JavaPlugin implements Listener {
 		Barrel barrel = new Barrel(result.getInt("id"), l, UUID.fromString(result.getString("creator")), itemStack, result.getInt("amount"));
 		barrels.put(l, barrel);
 
+		if (this.useHolo)
+		    createBarrelHologram(barrel);
+
 		if (result.getInt("id") >= this.nextID)
 		    this.nextID = result.getInt("id") + 1;
 	    }
@@ -97,6 +116,44 @@ public class Barrels extends JavaPlugin implements Listener {
 	return null;
     }
 
+    private void createBarrelHologram(Barrel barrel) {
+	ArrayList<Vector> locationsToCheck = new ArrayList<Vector>();
+	Vector start = barrel.getLocation().toVector();
+	locationsToCheck.add((start.clone().add(new Vector(1, 0, 0))));
+	locationsToCheck.add((start.clone().add(new Vector(-1, 0, 0))));
+	locationsToCheck.add((start.clone().add(new Vector(0, 0, 1))));
+	locationsToCheck.add((start.clone().add(new Vector(0, 0, -1))));
+
+	Entity[] entities = barrel.getLocation().getChunk().getEntities();
+
+	for (Entity e : entities) {
+	    if (e instanceof ItemFrame) {
+		ItemFrame itemFrame = (ItemFrame) e;
+		for (Vector toCheck : locationsToCheck) {
+		    Vector frameVector = itemFrame.getLocation().getBlock().getLocation().toVector();
+		    Vector toCheckVector = toCheck;
+		    if (frameVector.equals(toCheckVector)) {
+			Vector difference = itemFrame.getLocation().getBlock().getLocation().toVector().subtract(barrel.getLocation().toVector());
+			Hologram hologram = HologramsAPI.createHologram(this, itemFrame.getLocation().add(difference.multiply(0.2d).add(new Vector(0, 0.4, 0))));
+			hologram.getVisibilityManager().setVisibleByDefault(false);
+			hologram.getVisibilityManager().resetVisibilityAll();
+			barrel.addHologram(hologram);
+		    }
+		}
+	    }
+
+	}
+    }
+
+    public List<Barrel> getNearbyBarrels(Location location, int radius) {
+	ArrayList<Barrel> tempBarrels = new ArrayList<Barrel>();
+	for (Barrel barrel : barrels.values()) {
+	    if (barrel.getLocation().distance(location) <= radius)
+		tempBarrels.add(barrel);
+	}
+	return tempBarrels;
+    }
+
     public void destroyBarrel(Location location) {
 	Barrel barrel = barrels.get(location);
 	ItemStack itemStack = new ItemStack(barrel.getItemStack());
@@ -107,6 +164,9 @@ public class Barrels extends JavaPlugin implements Listener {
 	    Item itemDropped = location.getWorld().dropItem(location, itemStack);
 	    itemDropped.setVelocity(new Vector(0, 0, 0));
 	}
+
+	for (Hologram hologram : barrel.getHolograms())
+	    hologram.delete();
 
 	this.executeQuery("DELETE FROM `barrels-barrels` WHERE `id`='" + barrel.getID() + "'");
 	barrels.remove(location);
@@ -127,7 +187,7 @@ public class Barrels extends JavaPlugin implements Listener {
 
 	    Block base = frame.getLocation().getBlock().getRelative(frame.getAttachedFace());
 
-	    if (p.isSneaking() && barrels.containsKey(base.getLocation())) {
+	    if (!useHolo && p.isSneaking() && barrels.containsKey(base.getLocation())) {
 		p.sendMessage("[Barrels] Barrel item count: " + barrels.get(base.getLocation()).getItemAmount());
 		e.setCancelled(true);
 		return;
@@ -169,6 +229,9 @@ public class Barrels extends JavaPlugin implements Listener {
 		    } catch (SQLException e1) {
 			e1.printStackTrace();
 		    }
+
+		    if (this.useHolo)
+			createBarrelHologram(barrel);
 
 		    p.getWorld().playEffect(frame.getLocation(), Effect.ENDER_SIGNAL, 31);
 		}
@@ -325,6 +388,40 @@ public class Barrels extends JavaPlugin implements Listener {
 		} else
 		    e.setCancelled(false);
 
+	    }
+	}
+    }
+
+    @EventHandler
+    public void onPlayerToggleSneakEvent(PlayerToggleSneakEvent event) {
+	if (this.useHolo) {
+	    Player p = event.getPlayer();
+	    if (p.isSneaking()) {
+		for (Barrel barrel : barrels.values()) {
+		    for (Hologram hologram : barrel.getHolograms()) {
+			hologram.clearLines();
+			hologram.getVisibilityManager().hideTo(p);
+		    }
+		}
+	    } else {
+		List<Barrel> tempBarrels = getNearbyBarrels(p.getLocation(), 50);
+		if (tempBarrels.size() > 0) {
+		    for (Barrel barrel : tempBarrels) {
+			for (Hologram hologram : barrel.getHolograms()) {
+			    int amountStacks = barrel.getItemAmount() / 64;
+			    int rest = barrel.getItemAmount() % 64;
+
+			    if (amountStacks <= 0)
+				hologram.appendTextLine(barrel.getItemAmount() + "");
+			    else if (rest <= 0)
+				hologram.appendTextLine(amountStacks + "*64");
+			    else
+				hologram.appendTextLine(amountStacks + "*64+" + rest);
+
+			    hologram.getVisibilityManager().showTo(p);
+			}
+		    }
+		}
 	    }
 	}
     }

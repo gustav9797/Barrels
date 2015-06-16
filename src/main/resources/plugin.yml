@@ -1,3 +1,4 @@
 name: Barrels
 main: com.github.cheesesoftware.Barrels.Barrels
-version: 0.4
+version: 1.0
+softdepend: [HolographicDisplays]

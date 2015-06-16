@@ -1,9 +1,13 @@
 package com.github.cheesesoftware.Barrels;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.bukkit.Location;
 import org.bukkit.inventory.ItemStack;
+
+import com.gmail.filoghost.holographicdisplays.api.Hologram;
 
 public class Barrel {
     private int ID;
@@ -12,6 +16,8 @@ public class Barrel {
 
     private ItemStack item;
     private int itemAmount;
+    
+    private List<Hologram> holograms = new ArrayList<Hologram>();
 
     public Barrel(int ID, Location location, UUID creatorUUID, ItemStack item, int itemAmount) {
 	this.ID = ID;
@@ -43,5 +49,13 @@ public class Barrel {
 
     public void setItemAmount(int itemAmount) {
 	this.itemAmount = itemAmount;
+    }
+    
+    public List<Hologram> getHolograms() {
+	return this.holograms;
+    }
+    
+    public void addHologram(Hologram hologram) {
+	holograms.add(hologram);
     }
 }
